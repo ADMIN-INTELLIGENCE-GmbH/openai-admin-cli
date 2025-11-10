@@ -1,0 +1,713 @@
+# OpenAI Admin CLI
+
+A powerful command-line tool for managing your OpenAI organization using the Admin API.
+
+## Features
+
+- **List Users**: View all users in your organization with their roles and details
+- **List Projects**: See all projects (active and archived) in your organization
+- **Project Templates**: Export and import project configurations (users, service accounts, rate limits)
+- **Service Account Management**: 
+  - Create, list, view, and delete service accounts
+  - Automatic API key generation when creating service accounts
+- **API Key Management**: 
+  - View all admin API keys
+  - View project-specific API keys (user and service account keys)
+  - Get detailed information about specific keys
+  - Delete user API keys (service account keys deleted via service account deletion)
+- **Rate Limits Management**:
+  - View rate limits for all models in a project
+  - Get detailed rate limit information for specific models
+  - Update rate limits to control costs and prevent abuse
+  - Set per-minute and per-day limits for requests, tokens, images, and audio
+- **Usage Analytics**: Track detailed usage metrics for:
+  - Completions (chat/text models)
+  - Embeddings
+  - Image generation
+  - Audio speeches (TTS)
+  - Audio transcriptions (Whisper)
+- **Cost Tracking**: Monitor spending across projects and line items
+
+## Installation
+
+1. Clone this repository or download the files
+
+2. Install dependencies:
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+3. Set up your Admin API key:
+```bash
+export OPENAI_ADMIN_KEY="your-admin-api-key-here"
+```
+
+To get an Admin API Key, visit: https://platform.openai.com/settings/organization/admin-keys
+
+## Usage
+
+Make the script executable (optional):
+```bash
+chmod +x openai_admin.py
+```
+
+### List Users
+
+```bash
+python openai_admin.py users list
+```
+
+Options:
+- `--limit N` - Limit number of results (default: 100)
+- `--format [table|json]` - Output format (default: table)
+
+Example:
+```bash
+# List all users in table format
+python openai_admin.py users list
+
+# Get JSON output
+python openai_admin.py users list --format json
+```
+
+### List Projects
+
+```bash
+python openai_admin.py projects list
+```
+
+Options:
+- `--include-archived` - Include archived projects
+- `--limit N` - Limit number of results (default: 100)
+- `--format [table|json]` - Output format (default: table)
+
+Examples:
+```bash
+# List active projects
+python openai_admin.py projects list
+
+# List all projects including archived
+python openai_admin.py projects list --include-archived
+
+# Get JSON output
+python openai_admin.py projects list --format json
+```
+
+### List API Keys
+
+#### List Admin Keys
+
+```bash
+python openai_admin.py keys list-admin
+```
+
+Options:
+- `--limit N` - Limit number of results (default: 100)
+- `--format [table|json]` - Output format (default: table)
+
+Example:
+```bash
+python openai_admin.py keys list-admin
+```
+
+#### List Project Keys
+
+```bash
+python openai_admin.py keys list-project PROJECT_ID
+```
+
+Options:
+- `--limit N` - Limit number of results (default: 100)
+- `--format [table|json]` - Output format (default: table)
+
+Example:
+```bash
+# First, get your project ID
+python openai_admin.py projects list
+
+# Then list keys for that project
+python openai_admin.py keys list-project proj_abc123
+```
+
+#### Get API Key Details
+
+Get detailed information about a specific API key:
+
+```bash
+python openai_admin.py keys get PROJECT_ID KEY_ID
+```
+
+Options:
+- `--format [table|json]` - Output format (default: table)
+
+Example:
+```bash
+# Get details of a specific key
+python openai_admin.py keys get proj_abc123 key_xyz789
+
+# JSON output for scripting
+python openai_admin.py keys get proj_abc123 key_xyz789 --format json
+```
+
+This shows:
+- Key ID, name, and redacted value
+- Creation date and last usage date
+- Owner information (user details or service account info)
+
+#### Delete API Key
+
+Delete a user's API key from a project:
+
+```bash
+python openai_admin.py keys delete PROJECT_ID KEY_ID
+```
+
+Options:
+- `--force` - Skip confirmation prompt
+
+Example:
+```bash
+# Delete with confirmation prompt
+python openai_admin.py keys delete proj_abc123 key_xyz789
+
+# Force delete without confirmation
+python openai_admin.py keys delete proj_abc123 key_xyz789 --force
+```
+
+**Important Notes:**
+- Can only delete **user API keys** via this command
+- **Service account API keys** cannot be deleted individually
+- To remove a service account's key, delete the entire service account using `service-accounts delete`
+
+### Service Account Management
+
+Service accounts are bot users not tied to individual people. When a human user leaves your organization, their keys stop working. Service accounts persist and are ideal for production deployments, CI/CD pipelines, and automated systems.
+
+#### List Service Accounts
+
+```bash
+python openai_admin.py service-accounts list PROJECT_ID
+```
+
+Options:
+- `--limit N` - Limit number of results (default: 100)
+- `--format [table|json]` - Output format (default: table)
+
+Example:
+```bash
+# List service accounts in a project
+python openai_admin.py service-accounts list proj_abc123
+
+# JSON output
+python openai_admin.py service-accounts list proj_abc123 --format json
+```
+
+#### Create Service Account
+
+Create a new service account with an automatically generated API key:
+
+```bash
+python openai_admin.py service-accounts create PROJECT_ID NAME
+```
+
+Example:
+```bash
+# Create a service account for production
+python openai_admin.py service-accounts create proj_abc123 "Production Bot"
+
+# Create for CI/CD
+python openai_admin.py service-accounts create proj_abc123 "GitHub Actions"
+```
+
+**Critical Information:**
+- Creating a service account **automatically generates an API key**
+- The API key value is **displayed only once** during creation
+- **Save the API key immediately** - it cannot be retrieved later
+- If you lose the key, you must delete the service account and create a new one
+
+Example Output:
+```
+================================================================================
+[SUCCESS] Service Account Created Successfully!
+================================================================================
+ID:         svc_acct_abc123
+Name:       Production Bot
+Role:       member
+Created At: 2024-03-26 10:25:33
+
+================================================================================
+[WARNING] API KEY (SAVE THIS NOW - IT WON'T BE SHOWN AGAIN!)
+================================================================================
+Key ID:     key_xyz789
+Key Name:   Secret Key
+Key Value:  sk-proj-abcdefghijklmnop...
+Created At: 2024-03-26 10:25:33
+================================================================================
+
+[WARNING] This API key value is displayed only once!
+   Save it in a secure location immediately.
+```
+
+#### Get Service Account Details
+
+Retrieve information about a specific service account:
+
+```bash
+python openai_admin.py service-accounts get PROJECT_ID SERVICE_ACCOUNT_ID
+```
+
+Options:
+- `--format [table|json]` - Output format (default: table)
+
+Example:
+```bash
+python openai_admin.py service-accounts get proj_abc123 svc_acct_xyz
+```
+
+#### Delete Service Account
+
+Delete a service account and all its API keys:
+
+```bash
+python openai_admin.py service-accounts delete PROJECT_ID SERVICE_ACCOUNT_ID
+```
+
+Options:
+- `--force` - Skip confirmation prompt
+
+Example:
+```bash
+# Delete with confirmation
+python openai_admin.py service-accounts delete proj_abc123 svc_acct_xyz
+
+# Force delete without prompt
+python openai_admin.py service-accounts delete proj_abc123 svc_acct_xyz --force
+```
+
+**Warning:**
+- Deleting a service account **also deletes all its API keys**
+- This action **cannot be undone**
+- Any systems using those API keys will immediately lose access
+
+### Rate Limits Management
+
+Rate limits control API usage per model and per project. This is crucial for **cost control**, **preventing abuse**, and **managing performance**. You can set limits lower than your organization's limits but cannot exceed them.
+
+#### List Rate Limits
+
+View all rate limits configured for a project:
+
+```bash
+python openai_admin.py rate-limits list PROJECT_ID
+```
+
+Options:
+- `--limit N` - Maximum number of rate limits to return (default: 100)
+- `--format [table|json]` - Output format (default: table)
+
+Example:
+```bash
+# List all rate limits for a project
+python openai_admin.py rate-limits list proj_abc123
+
+# JSON output for scripting
+python openai_admin.py rate-limits list proj_abc123 --format json
+```
+
+The output shows:
+- Model name (e.g., `gpt-4`, `gpt-3.5-turbo`, `dall-e-3`)
+- Maximum requests per minute
+- Maximum tokens per minute
+- Maximum images per minute (for image models)
+- Maximum audio MB per minute (for audio models)
+- Maximum requests per day
+- Maximum batch tokens per day
+
+**Note:** The OpenAI Admin API does not support retrieving individual rate limit details. Use the `list` command to view all rate limits for a project.
+
+#### Update Rate Limits
+
+Modify rate limits for a model to control costs and usage:
+
+```bash
+python openai_admin.py rate-limits update PROJECT_ID RATE_LIMIT_ID [OPTIONS]
+```
+
+Options (specify only the limits you want to change):
+- `--max-requests-per-minute INT` - Maximum requests per minute
+- `--max-tokens-per-minute INT` - Maximum tokens per minute
+- `--max-images-per-minute INT` - Maximum images per minute (image models)
+- `--max-audio-mb-per-minute INT` - Maximum audio MB per minute (audio models)
+- `--max-requests-per-day INT` - Maximum requests per day
+- `--batch-max-tokens-per-day INT` - Maximum batch input tokens per day
+
+Examples:
+
+```bash
+# Reduce GPT-4 usage to control costs
+python openai_admin.py rate-limits update proj_abc123 rl_gpt4 \
+  --max-requests-per-minute 50 \
+  --max-tokens-per-minute 10000
+
+# Set daily limit for DALL-E
+python openai_admin.py rate-limits update proj_abc123 rl_dalle3 \
+  --max-images-per-minute 5 \
+  --max-requests-per-day 100
+
+# Increase limits for production project
+python openai_admin.py rate-limits update proj_prod rl_gpt35turbo \
+  --max-requests-per-minute 5000 \
+  --max-tokens-per-minute 1000000
+```
+
+**Important Notes:**
+- **Cannot exceed organization limits** - Project limits must be ≤ organization limits
+- **Use for cost control** - Set conservative limits for dev/test projects
+- **Performance tuning** - Adjust limits based on actual usage patterns
+- **Monitor usage** - Use `usage` commands to see actual consumption vs limits
+
+**Common Use Cases:**
+
+1. **Development Environment** - Low limits to prevent accidental overspending:
+   ```bash
+   python openai_admin.py rate-limits update proj_dev rl_gpt4 \
+     --max-requests-per-minute 10 \
+     --max-tokens-per-minute 5000
+   ```
+
+2. **Production Environment** - Higher limits for business-critical apps:
+   ```bash
+   python openai_admin.py rate-limits update proj_prod rl_gpt4 \
+     --max-requests-per-minute 1000 \
+     --max-tokens-per-minute 500000
+   ```
+
+3. **Cost Cap** - Set daily limits to prevent monthly bill surprises:
+   ```bash
+   python openai_admin.py rate-limits update proj_abc123 rl_gpt4 \
+     --max-requests-per-day 10000
+   ```
+
+### Usage Analytics
+
+#### Completions Usage
+
+Track usage for chat and text completion models:
+
+```bash
+# Quick usage - last 7 days
+python openai_admin.py usage completions --days 7
+
+# Or specify exact date range
+python openai_admin.py usage completions --start-date 2024-01-01
+```
+
+Options:
+- `--start-date YYYY-MM-DD` - Start date (either this or --days required)
+- `--end-date YYYY-MM-DD` - End date (defaults to now)
+- `--days N` - Alternative to --start-date: look back N days from now
+- `--group-by FIELD` - Group by: project_id, user_id, api_key_id, model, batch, service_tier (can be used multiple times)
+- `--project-id ID` - Filter by project ID (can be used multiple times)
+- `--model NAME` - Filter by model name (can be used multiple times)
+- `--limit N` - Number of time buckets to return (default: 7)
+- `--format [table|json]` - Output format (default: table)
+
+Examples:
+```bash
+# Quick look at last 7 days
+python openai_admin.py usage completions --days 7
+
+# Last 30 days
+python openai_admin.py usage completions --days 30
+
+# Specific date range
+python openai_admin.py usage completions --start-date 2024-01-01 --end-date 2024-01-31
+
+# Group by project and model
+python openai_admin.py usage completions --days 30 --group-by project_id --group-by model
+
+# Filter specific projects and models
+python openai_admin.py usage completions --days 30 --project-id proj_123 --model gpt-4
+```
+
+#### Embeddings Usage
+
+Track embeddings API usage:
+
+```bash
+# Quick usage - last 7 days
+python openai_admin.py usage embeddings --days 7
+
+# Or specify exact date range
+python openai_admin.py usage embeddings --start-date 2024-01-01
+```
+
+Options:
+- `--start-date YYYY-MM-DD` - Start date (either this or --days required)
+- `--end-date YYYY-MM-DD` - End date (defaults to now)
+- `--days N` - Alternative to --start-date: look back N days from now
+- `--group-by FIELD` - Group by: project_id, user_id, api_key_id, model
+- `--limit N` - Number of time buckets to return (default: 7)
+- `--format [table|json]` - Output format (default: table)
+
+#### Image Generation Usage
+
+Track DALL-E and image generation usage:
+
+```bash
+# Quick usage - last 7 days
+python openai_admin.py usage images --days 7
+
+# Or specify exact date range
+python openai_admin.py usage images --start-date 2024-01-01
+```
+
+Options:
+- `--start-date YYYY-MM-DD` - Start date (either this or --days required)
+- `--end-date YYYY-MM-DD` - End date (defaults to now)
+- `--days N` - Alternative to --start-date: look back N days from now
+- `--group-by FIELD` - Group by: project_id, model, size, source
+- `--limit N` - Number of time buckets to return (default: 7)
+- `--format [table|json]` - Output format (default: table)
+
+#### Audio Speeches Usage (TTS)
+
+Track text-to-speech usage:
+
+```bash
+# Quick usage - last 7 days
+python openai_admin.py usage audio-speeches --days 7
+
+# Or specify exact date range
+python openai_admin.py usage audio-speeches --start-date 2024-01-01
+```
+
+Options:
+- `--start-date YYYY-MM-DD` - Start date (either this or --days required)
+- `--days N` - Alternative to --start-date: look back N days from now
+- `--group-by FIELD` - Group by: project_id, model
+- `--format [table|json]` - Output format (default: table)
+
+#### Audio Transcriptions Usage (Whisper)
+
+Track Whisper transcription usage:
+
+```bash
+# Quick usage - last 7 days
+python openai_admin.py usage audio-transcriptions --days 7
+
+# Or specify exact date range
+python openai_admin.py usage audio-transcriptions --start-date 2024-01-01
+```
+
+Options:
+- `--start-date YYYY-MM-DD` - Start date (either this or --days required)
+- `--days N` - Alternative to --start-date: look back N days from now
+- `--group-by FIELD` - Group by: project_id, model
+- `--format [table|json]` - Output format (default: table)
+
+### Cost Tracking
+
+Monitor your organization's spending:
+
+```bash
+# Quick look at last 30 days
+python openai_admin.py costs --days 30
+
+# Or specify exact date range
+python openai_admin.py costs --start-date 2024-01-01
+```
+
+Options:
+- `--start-date YYYY-MM-DD` - Start date (either this or --days required)
+- `--end-date YYYY-MM-DD` - End date (defaults to now)
+- `--days N` - Alternative to --start-date: look back N days from now
+- `--group-by FIELD` - Group by: project_id, line_item (can be used multiple times)
+- `--project-id ID` - Filter by project ID (can be used multiple times)
+- `--limit N` - Number of time buckets to return (default: 7)
+- `--format [table|json]` - Output format (default: table)
+
+Examples:
+```bash
+# Last 30 days of costs
+python openai_admin.py costs --days 30
+
+# Last 7 days
+python openai_admin.py costs --days 7
+
+# Specific date range
+python openai_admin.py costs --start-date 2024-01-01 --end-date 2024-01-31
+
+# Group by project to see per-project spending
+python openai_admin.py costs --days 30 --group-by project_id
+
+# Group by line item to see detailed breakdown
+python openai_admin.py costs --days 7 --group-by line_item
+
+# Specific project costs
+python openai_admin.py costs --days 30 --project-id proj_123
+```
+
+## Environment Variables
+
+- `OPENAI_ADMIN_KEY` - Your OpenAI Admin API key (required)
+
+You can also pass the key as a command-line option:
+```bash
+python openai_admin.py --admin-key sk-admin-... users list
+```
+
+## Output Formats
+
+### Table Format (Default)
+Clean, readable tables in your terminal:
+```
+Total users: 3
+
++-------------+-----------+--------------------+--------+---------------------+
+| ID          | Name      | Email              | Role   | Added At            |
++=============+===========+====================+========+=====================+
+| user_abc    | John Doe  | john@example.com   | owner  | 2024-03-26 10:25:33 |
++-------------+-----------+--------------------+--------+---------------------+
+```
+
+### JSON Format
+Raw API response for scripting and automation:
+```bash
+python openai_admin.py users list --format json | jq '.data[] | {name, email, role}'
+```
+
+## Common Use Cases
+
+### Audit organization access
+```bash
+# See all users and their roles
+python openai_admin.py users list
+
+# Check who has access to a specific project
+python openai_admin.py keys list-project proj_123
+
+# List all service accounts in a project
+python openai_admin.py service-accounts list proj_123
+```
+
+### Set up service accounts for production
+```bash
+# Create a service account for your production application
+python openai_admin.py service-accounts create proj_123 "Production API Bot"
+
+# IMPORTANT: Copy and save the API key shown - it won't be displayed again!
+# Store it securely (e.g., in your environment variables or secrets manager)
+
+# List all service accounts to verify
+python openai_admin.py service-accounts list proj_123
+```
+
+### Manage API keys
+```bash
+# View details of a specific API key
+python openai_admin.py keys get proj_123 key_xyz
+
+# Delete a compromised user API key
+python openai_admin.py keys delete proj_123 key_xyz
+
+# Delete a service account (and all its keys)
+python openai_admin.py service-accounts delete proj_123 svc_acct_abc
+```
+
+### Monitor API key usage
+```bash
+# See when admin keys were last used
+python openai_admin.py keys list-admin
+
+# Check project-specific key usage
+python openai_admin.py keys list-project proj_123
+
+# Get detailed info about a specific key
+python openai_admin.py keys get proj_123 key_xyz
+```
+
+### Review project structure
+```bash
+# See all active projects
+python openai_admin.py projects list
+
+# Include archived projects for cleanup
+python openai_admin.py projects list --include-archived
+```
+
+### Analyze usage patterns
+```bash
+# See which models are being used most
+python openai_admin.py usage completions --days 30 --group-by model
+
+# Check usage by project
+python openai_admin.py usage completions --days 7 --group-by project_id
+
+# Track token usage over time
+python openai_admin.py usage completions --start-date 2024-01-01 --end-date 2024-01-31
+```
+
+### Monitor costs and spending
+```bash
+# Total costs for the last month
+python openai_admin.py costs --days 30
+
+# Per-project cost breakdown
+python openai_admin.py costs --days 30 --group-by project_id
+
+# Detailed line-item costs
+python openai_admin.py costs --start-date 2024-01-01 --group-by project_id --group-by line_item
+```
+
+## Security Notes
+
+- **Admin API keys have elevated privileges** - handle them securely
+- Never commit your admin key to version control
+- Consider using key rotation practices
+- Admin keys can only be created by Organization Owners
+
+## Troubleshooting
+
+### "OPENAI_ADMIN_KEY environment variable required"
+Set your admin API key:
+```bash
+export OPENAI_ADMIN_KEY="sk-admin-..."
+```
+
+### Import errors
+Make sure dependencies are installed:
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+### API errors
+- Verify your admin key is valid
+- Ensure you have Organization Owner permissions
+- Check that the key hasn't expired
+
+## Future Features
+
+Coming soon:
+- User management (invite, modify, delete)
+- Audit log queries
+- Rate limit management via templates
+- Export reports to CSV/Excel
+- Cost alerts and budgeting
+
+## Contributing
+
+Feel free to submit issues and enhancement requests!
+
+## Author
+
+**Julian Billinger**  
+ADMIN INTELLIGENCE
+
+For bugs, feature requests, or questions:
+- Open an issue on GitHub
+- Email: julian.billinger@admin-intelligence.com
+
+## License
+
+MIT License - feel free to use and modify as needed.
