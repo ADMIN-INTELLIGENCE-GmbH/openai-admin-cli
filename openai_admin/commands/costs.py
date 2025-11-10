@@ -7,7 +7,7 @@ from openai_admin.utils import format_timestamp, format_redacted_value
 import requests
 
 @click.command('costs')
-@click.option('--start-date', required=True, help='Start date (YYYY-MM-DD)')
+@click.option('--start-date', help='Start date (YYYY-MM-DD)')
 @click.option('--end-date', help='End date (YYYY-MM-DD), defaults to now')
 @click.option('--days', type=int, help='Alternative: number of days to look back from now')
 @click.option('--group-by', multiple=True, type=click.Choice(['project_id', 'line_item']), 
@@ -21,6 +21,11 @@ def costs_command(ctx, start_date, end_date, days, group_by, project_id, limit, 
     client = ctx.obj['client']
     
     from datetime import datetime, timedelta
+    
+    # Validate that either --days or --start-date is provided
+    if not days and not start_date:
+        click.echo("[ERROR] Either --days or --start-date must be provided", err=True)
+        return
     
     start_time = None
     end_time = None
