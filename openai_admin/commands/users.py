@@ -4,7 +4,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from tabulate import tabulate
-from openai_admin.utils import format_timestamp, format_redacted_value
+from openai_admin.utils import format_timestamp, format_redacted_value, with_notification, notification_options
 import requests
 
 @click.group()
@@ -17,6 +17,8 @@ def users():
 @click.option('--limit', default=100, help='Maximum number of users to return')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def list_users(ctx, limit, output_format):
     """List all users in the organization"""
     client = ctx.obj['client']
@@ -40,11 +42,8 @@ def list_users(ctx, limit, output_format):
         # Table format
         table_data = []
         for user in users_data:
-            # Apply Long Text Truncation for ID
-            user_id_truncated = user.get('id', '')[:20] + '...' if user.get('id') else 'N/A'
-            
             table_data.append([
-                user_id_truncated,
+                user.get('id', 'N/A'),
                 user.get('name', 'N/A'),
                 user.get('email', 'N/A'),
                 user.get('role', 'N/A'),

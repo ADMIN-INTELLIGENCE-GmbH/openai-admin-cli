@@ -3,7 +3,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from tabulate import tabulate
-from openai_admin.utils import format_timestamp, format_redacted_value
+from openai_admin.utils import format_timestamp, format_redacted_value, with_notification, notification_options
 import requests
 
 @click.group()
@@ -26,6 +26,8 @@ def audit():
 @click.option('--resource-id', multiple=True, help='Filter by resource ID')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json', 'detailed']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def list_audit_logs(ctx, limit, after, before, start_date, end_date, days, event_type, 
                    project_id, actor_email, actor_id, resource_id, output_format):
     """List audit logs for security and compliance monitoring"""
@@ -171,12 +173,12 @@ def list_audit_logs(ctx, limit, after, before, start_date, end_date, days, event
         project_name = project.get('name', '') if project else ''
         
         table_data.append([
-            log.get('id', '')[:20] + '...',  # Truncate ID
+            log.get('id', 'N/A'),
             format_timestamp(log.get('effective_at')),
             log.get('type', ''),
             actor_type,
-            actor_info[:30],  # Truncate actor info
-            project_name[:20] if project_name else 'N/A'
+            actor_info[:30],  # Truncate actor info for readability
+            project_name[:20] if project_name else 'N/A'  # Truncate project name for readability
         ])
     
     # Apply Table Header Style (Title Case is already used)
@@ -257,7 +259,3 @@ def list_event_types():
     click.echo("   python openai_admin.py audit list --event-type=user.added --days=7")
     click.echo("   python openai_admin.py audit list --event-type=login.failed --days=1")
     click.echo("   python openai_admin.py audit list --actor-email=user@example.com --days=30\n")
-
-
-if __name__ == '__main__':
-    cli(obj={})

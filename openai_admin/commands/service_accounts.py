@@ -4,7 +4,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from tabulate import tabulate
-from openai_admin.utils import format_timestamp, format_redacted_value
+from openai_admin.utils import format_timestamp, format_redacted_value, with_notification, notification_options
 import requests
 
 @click.group(name='service-accounts')
@@ -18,6 +18,8 @@ def service_accounts():
 @click.option('--limit', default=100, help='Maximum number of service accounts to return')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def list_service_accounts(ctx, project_id, limit, output_format):
     """List all service accounts in a project"""
     client = ctx.obj['client']
@@ -41,11 +43,8 @@ def list_service_accounts(ctx, project_id, limit, output_format):
         # Table format
         table_data = []
         for sa in accounts_data:
-            # Apply Long Text Truncation for ID
-            sa_id_truncated = sa.get('id', '')[:20] + '...' if sa.get('id') else 'N/A'
-            
             table_data.append([
-                sa_id_truncated,
+                sa.get('id', 'N/A'),
                 sa.get('name', 'N/A'),
                 sa.get('role', 'N/A'),
                 format_timestamp(sa.get('created_at'))
@@ -65,6 +64,8 @@ def list_service_accounts(ctx, project_id, limit, output_format):
 @click.argument('project_id')
 @click.argument('name')
 @click.pass_context
+@notification_options
+@with_notification
 def create_service_account(ctx, project_id, name):
     """Create a new service account in a project
     
@@ -123,6 +124,8 @@ def create_service_account(ctx, project_id, name):
 @click.argument('service_account_id')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def get_service_account(ctx, project_id, service_account_id, output_format):
     """Get details of a specific service account"""
     client = ctx.obj['client']
@@ -155,6 +158,8 @@ def get_service_account(ctx, project_id, service_account_id, output_format):
 @click.argument('service_account_id')
 @click.option('--force', is_flag=True, help='Skip confirmation prompt')
 @click.pass_context
+@notification_options
+@with_notification
 def delete_service_account(ctx, project_id, service_account_id, force):
     """Delete a service account from a project
     

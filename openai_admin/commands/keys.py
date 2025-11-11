@@ -4,7 +4,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from tabulate import tabulate
-from openai_admin.utils import format_timestamp, format_redacted_value
+from openai_admin.utils import format_timestamp, format_redacted_value, with_notification, notification_options
 import requests
 
 @click.group()
@@ -17,6 +17,8 @@ def keys():
 @click.option('--limit', default=100, help='Maximum number of keys to return')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def list_admin_keys(ctx, limit, output_format):
     """List all admin API keys"""
     client = ctx.obj['client']
@@ -49,11 +51,8 @@ def list_admin_keys(ctx, limit, output_format):
             elif owner_type == 'service_account':
                 owner_name = owner.get('name', 'N/A')
             
-            # Apply Long Text Truncation for ID
-            key_id_truncated = key.get('id', '')[:20] + '...' if key.get('id') else 'N/A'
-            
             table_data.append([
-                key_id_truncated,
+                key.get('id', 'N/A'),
                 key.get('name', 'N/A'),
                 format_redacted_value(key.get('redacted_value', '')),
                 owner_type,
@@ -77,6 +76,8 @@ def list_admin_keys(ctx, limit, output_format):
 @click.option('--limit', default=100, help='Maximum number of keys to return')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def list_project_keys(ctx, project_id, limit, output_format):
     """List API keys for a specific project"""
     client = ctx.obj['client']
@@ -111,11 +112,8 @@ def list_project_keys(ctx, project_id, limit, output_format):
                 sa_data = owner.get('service_account', {})
                 owner_name = sa_data.get('name', 'N/A')
             
-            # Apply Long Text Truncation for ID
-            key_id_truncated = key.get('id', '')[:20] + '...' if key.get('id') else 'N/A'
-
             table_data.append([
-                key_id_truncated,
+                key.get('id', 'N/A'),
                 key.get('name', 'N/A'),
                 format_redacted_value(key.get('redacted_value', '')),
                 owner_type,
@@ -139,6 +137,8 @@ def list_project_keys(ctx, project_id, limit, output_format):
 @click.argument('key_id')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def get_project_key(ctx, project_id, key_id, output_format):
     """Get details of a specific API key"""
     client = ctx.obj['client']
@@ -191,6 +191,8 @@ def get_project_key(ctx, project_id, key_id, output_format):
 @click.argument('key_id')
 @click.option('--force', is_flag=True, help='Skip confirmation prompt')
 @click.pass_context
+@notification_options
+@with_notification
 def delete_project_key(ctx, project_id, key_id, force):
     """Delete an API key from a project
     

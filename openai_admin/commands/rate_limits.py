@@ -4,7 +4,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from tabulate import tabulate
-from openai_admin.utils import format_timestamp, format_redacted_value
+from openai_admin.utils import format_timestamp, format_redacted_value, with_notification, notification_options
 import requests
 
 @click.group(name='rate-limits')
@@ -18,6 +18,8 @@ def rate_limits():
 @click.option('--limit', default=100, help='Maximum number of rate limits to return')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def list_rate_limits(ctx, project_id, limit, output_format):
     """List all rate limits for a project"""
     client = ctx.obj['client']
@@ -56,11 +58,8 @@ def list_rate_limits(ctx, project_id, limit, output_format):
             if rl.get('batch_1_day_max_input_tokens'):
                 limits_str.append(f"Batch tokens/day: {rl.get('batch_1_day_max_input_tokens'):,}")
             
-            # Apply Long Text Truncation for ID
-            rl_id_truncated = rl.get('id', '')[:20] + '...' if rl.get('id') else 'N/A'
-            
             table_data.append([
-                rl_id_truncated,
+                rl.get('id', 'N/A'),
                 rl.get('model', 'N/A'),
                 '\n'.join(limits_str) if limits_str else 'N/A'
             ])
@@ -85,6 +84,8 @@ def list_rate_limits(ctx, project_id, limit, output_format):
 @click.option('--max-requests-per-day', type=int, help='Maximum requests per day')
 @click.option('--batch-max-tokens-per-day', type=int, help='Maximum batch input tokens per day')
 @click.pass_context
+@notification_options
+@with_notification
 def update_rate_limit(ctx, project_id, rate_limit_id, max_requests_per_minute, 
                      max_tokens_per_minute, max_images_per_minute, max_audio_mb_per_minute,
                      max_requests_per_day, batch_max_tokens_per_day):

@@ -1,0 +1,10 @@
+{
+  "users": {
+    "1": {
+      "name": "Robert Rock",
+      "email": "robert.rock@admin-intelligence.com",
+      "mattermost_user_id": "pbif4ka7shkhtyddh5he3fh41c",
+      "mattermost_channel_id": "iwtea4gjtfdyhfsjgis7eqnknh"
+    }
+  }
+}

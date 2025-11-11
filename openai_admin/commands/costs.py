@@ -3,7 +3,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from tabulate import tabulate
-from openai_admin.utils import format_timestamp, format_redacted_value
+from openai_admin.utils import format_timestamp, format_redacted_value, with_notification, notification_options
 import requests
 
 @click.command('costs')
@@ -16,6 +16,8 @@ import requests
 @click.option('--limit', default=7, help='Number of time buckets to return')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def costs_command(ctx, start_date, end_date, days, group_by, project_id, limit, output_format):
     """Get costs/spending data"""
     client = ctx.obj['client']

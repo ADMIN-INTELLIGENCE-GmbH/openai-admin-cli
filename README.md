@@ -4,6 +4,7 @@ A powerful command-line tool for managing your OpenAI organization using the Adm
 
 ## Features
 
+- **Notification System**: Send command results to users via Mattermost for remote execution and monitoring
 - **List Users**: View all users in your organization with their roles and details
 - **List Projects**: See all projects (active and archived) in your organization
 - **Project Templates**: Export and import project configurations (users, service accounts, rate limits)
@@ -27,6 +28,7 @@ A powerful command-line tool for managing your OpenAI organization using the Adm
   - Audio speeches (TTS)
   - Audio transcriptions (Whisper)
 - **Cost Tracking**: Monitor spending across projects and line items
+- **Audit Logs**: Security and compliance monitoring with detailed event tracking
 
 ## Installation
 
@@ -548,13 +550,156 @@ python openai_admin.py costs --days 7 --group-by line_item
 python openai_admin.py costs --days 30 --project-id proj_123
 ```
 
+## Notifications
+
+Send command results to users via Mattermost for remote monitoring and async execution. Perfect for long-running operations, scheduled tasks, or notifying team members of changes.
+
+### Quick Start
+
+```bash
+# Send command output to user ID 49 via Mattermost
+python openai_admin.py projects list --notify 49 --channel mattermost
+
+# Works with any command - at the end
+python openai_admin.py users list --limit 10 --notify 49 --channel mattermost
+
+# Or at the beginning
+python openai_admin.py --notify 49 --channel mattermost projects list --limit 10
+```
+
+### Notification Commands
+
+#### Test Notifications
+
+```bash
+# Send a test message
+python openai_admin.py notify test 49
+
+# Custom test message
+python openai_admin.py notify test 49 --message "Testing the notification system"
+```
+
+#### List Available Users
+
+```bash
+# See all configured users for notifications
+python openai_admin.py notify list-users
+```
+
+Output:
+```
+[INFO] Available users for mattermost notifications:
+
+  User ID: 49
+    Name:  Julian Billinger
+    Email: julian.billinger@admin-intelligence.com
+    MM User ID: pdmno8z8yib9ij8grd4ut8i6ye
+    MM Channel ID: smz4idhmsf8y5y7nc1yg8ibnbe
+
+Total: 1 users configured
+```
+
+#### Check System Status
+
+```bash
+# Verify notification system configuration
+python openai_admin.py notify status
+```
+
+### Use Cases
+
+**Remote Execution:**
+```bash
+# Run on a server, get results in Mattermost
+python openai_admin.py projects delete proj_old123 --force --notify 49 --channel mattermost
+```
+
+**Long-Running Operations:**
+```bash
+# Get notified when large data exports complete
+python openai_admin.py usage completions --days 365 --notify 49 --channel mattermost
+```
+
+**Team Notifications:**
+```bash
+# Notify team lead when service account is created
+python openai_admin.py service-accounts create proj_prod "API Bot" --notify 49 --channel mattermost
+```
+
+**Audit Trail:**
+```bash
+# Send audit logs to compliance team
+python openai_admin.py audit list --days 7 --notify 49 --channel mattermost
+```
+
+### Message Format
+
+Messages are formatted with:
+- ✅ Success indicator (or ❌ for failures)
+- Command that was executed
+- Full command output
+- Timestamp
+
+Example notification:
+```
+✅ OpenAI Admin CLI - Success
+
+Command: openai_admin.py projects list
+
+Output:
+Fetching projects...
+
+Total projects: 5
+
++-------------------------------+-----------------+----------+
+| ID                            | Name            | Status   |
++===============================+=================+==========+
+| proj_R1hXkN2ReRX94yfyT0gewFz4 | Default project | active   |
++-------------------------------+-----------------+----------+
+...
+```
+
+For more details, see [NOTIFICATIONS.md](NOTIFICATIONS.md).
+
+## Output Formats
+```
+
 ## Environment Variables
 
 - `OPENAI_ADMIN_KEY` - Your OpenAI Admin API key (required)
+- `MATTERMOST_BOT_TOKEN` - Mattermost bot token for notifications (optional)
+- `MATTERMOST_BOT_ID` - Mattermost bot ID for notifications (optional)
+- `MATTERMOST_BASE_URL` - Mattermost API base URL (optional, defaults to https://chat.admin-intelligence.de/api/v4)
 
-You can also pass the key as a command-line option:
+You can also pass the admin key as a command-line option:
 ```bash
 python openai_admin.py --admin-key sk-admin-... users list
+```
+
+### Setting up Notifications
+
+To enable Mattermost notifications, add these to your `.env` file:
+
+```env
+OPENAI_ADMIN_KEY="sk-admin-..."
+MATTERMOST_BOT_TOKEN="your_bot_token"
+MATTERMOST_BOT_ID="your_bot_id"
+MATTERMOST_BASE_URL="https://chat.admin-intelligence.de/api/v4"
+```
+
+Then configure user mappings in `config/mattermost.json`:
+
+```json
+{
+  "users": {
+    "49": {
+      "name": "Julian Billinger",
+      "email": "julian.billinger@admin-intelligence.com",
+      "mattermost_user_id": "pdmno8z8yib9ij8grd4ut8i6ye",
+      "mattermost_channel_id": "smz4idhmsf8y5y7nc1yg8ibnbe"
+    }
+  }
+}
 ```
 
 ## Output Formats
@@ -690,10 +835,68 @@ python3 -m pip install -r requirements.txt
 
 Coming soon:
 - User management (invite, modify, delete)
-- Audit log queries
 - Rate limit management via templates
 - Export reports to CSV/Excel
 - Cost alerts and budgeting
+- Additional notification channels (email, Slack, Discord)
+
+## Changelog
+
+### Version 1.1.0 - November 11, 2025
+
+**New Features:**
+- **Mattermost Notification System**: Send command results to users via Mattermost
+  - Added `--notify` and `--channel` options to all commands
+  - Supports notification options at both root level and command level
+  - Automatic output capture and formatting for Mattermost
+  - New `notify` command group with test, list-users, and status subcommands
+  - Integration with user mappings via `config/mattermost.json`
+  - See [NOTIFICATIONS.md](NOTIFICATIONS.md) for complete documentation
+
+**Improvements:**
+- **ID Display**: Removed truncation across all commands - now showing full IDs for:
+  - Project IDs
+  - User IDs
+  - API Key IDs
+  - Service Account IDs
+  - Rate Limit IDs
+  - Audit Log IDs
+  - All usage analytics IDs
+- **Code Organization**: Created modular notification system with `openai_admin/notifier.py`
+- **Utilities**: Added `notification_options` decorator and `with_notification` wrapper for easy command integration
+
+**Configuration:**
+- Added support for `MATTERMOST_BOT_TOKEN`, `MATTERMOST_BOT_ID`, and `MATTERMOST_BASE_URL` environment variables
+- Added `config/mattermost.json` for user ID to Mattermost channel mappings
+
+**Documentation:**
+- Added comprehensive notification documentation in README
+- Created detailed [NOTIFICATIONS.md](NOTIFICATIONS.md) guide
+- Updated environment variables section with notification settings
+
+**Commands Enhanced with Notifications:**
+- `users list`
+- `projects list`, `projects delete`
+- `keys list-admin`, `keys list-project`, `keys get`, `keys delete`
+- `service-accounts list`, `service-accounts create`, `service-accounts get`, `service-accounts delete`
+- `rate-limits list`, `rate-limits update`
+- `usage completions`, `usage embeddings`, `usage images`, `usage audio-speeches`, `usage audio-transcriptions`
+- `costs`
+- `audit list`
+
+### Version 1.0.0 - Initial Release
+
+**Core Features:**
+- User management (list users)
+- Project management (list, export templates, create from templates, delete/archive)
+- API key management (list admin keys, list project keys, get key details, delete keys)
+- Service account management (list, create, get, delete)
+- Rate limits management (list, update)
+- Usage analytics (completions, embeddings, images, audio speeches, audio transcriptions)
+- Cost tracking and monitoring
+- Audit log viewing and filtering
+- Support for table and JSON output formats
+- Comprehensive error handling and logging
 
 ## Contributing
 

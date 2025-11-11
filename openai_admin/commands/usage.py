@@ -4,7 +4,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from tabulate import tabulate
-from openai_admin.utils import format_timestamp, format_redacted_value
+from openai_admin.utils import format_timestamp, format_redacted_value, with_notification, notification_options
 import requests
 
 @click.group()
@@ -24,6 +24,8 @@ def usage():
 @click.option('--limit', default=7, help='Number of time buckets to return')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def usage_completions(ctx, start_date, end_date, days, group_by, project_id, model, limit, output_format):
     """Get completions (chat/text) usage statistics"""
     client = ctx.obj['client']
@@ -114,17 +116,16 @@ def usage_completions(ctx, start_date, end_date, days, group_by, project_id, mod
             
             # Add grouping columns if specified
             if 'project_id' in group_by:
-                # Apply Long Text Truncation for IDs if not None
                 project_id_val = result_item.get('project_id', 'N/A')
-                row.append(project_id_val[:20] + '...' if len(project_id_val) > 20 else project_id_val)
+                row.append(project_id_val)
             if 'model' in group_by:
                 row.append(result_item.get('model') or 'N/A')
             if 'user_id' in group_by:
                 user_id_val = result_item.get('user_id', 'N/A')
-                row.append(user_id_val[:20] + '...' if len(user_id_val) > 20 else user_id_val)
+                row.append(user_id_val)
             if 'api_key_id' in group_by:
                 api_key_id_val = result_item.get('api_key_id', 'N/A')
-                row.append(api_key_id_val[:20] + '...' if len(api_key_id_val) > 20 else api_key_id_val)
+                row.append(api_key_id_val)
             if 'batch' in group_by:
                 row.append('Yes' if result_item.get('batch') else 'No')
             if 'service_tier' in group_by:
@@ -171,6 +172,8 @@ def usage_completions(ctx, start_date, end_date, days, group_by, project_id, mod
 @click.option('--limit', default=7, help='Number of time buckets to return')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def usage_embeddings(ctx, start_date, end_date, days, group_by, limit, output_format):
     """Get embeddings usage statistics"""
     client = ctx.obj['client']
@@ -241,15 +244,15 @@ def usage_embeddings(ctx, start_date, end_date, days, group_by, limit, output_fo
             row = []
             if 'project_id' in group_by:
                 project_id_val = result_item.get('project_id', 'N/A')
-                row.append(project_id_val[:20] + '...' if len(project_id_val) > 20 else project_id_val)
+                row.append(project_id_val)
             if 'model' in group_by:
                 row.append(result_item.get('model') or 'N/A')
             if 'user_id' in group_by:
                 user_id_val = result_item.get('user_id', 'N/A')
-                row.append(user_id_val[:20] + '...' if len(user_id_val) > 20 else user_id_val)
+                row.append(user_id_val)
             if 'api_key_id' in group_by:
                 api_key_id_val = result_item.get('api_key_id', 'N/A')
-                row.append(api_key_id_val[:20] + '...' if len(api_key_id_val) > 20 else api_key_id_val)
+                row.append(api_key_id_val)
 
             # Add usage metrics (with thousand separators)
             row.extend([
@@ -284,6 +287,8 @@ def usage_embeddings(ctx, start_date, end_date, days, group_by, limit, output_fo
 @click.option('--limit', default=7, help='Number of time buckets to return')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def usage_images(ctx, start_date, end_date, days, group_by, limit, output_format):
     """Get image generation usage statistics"""
     client = ctx.obj['client']
@@ -354,7 +359,7 @@ def usage_images(ctx, start_date, end_date, days, group_by, limit, output_format
             row = []
             if 'project_id' in group_by:
                 project_id_val = result_item.get('project_id', 'N/A')
-                row.append(project_id_val[:20] + '...' if len(project_id_val) > 20 else project_id_val)
+                row.append(project_id_val)
             if 'model' in group_by:
                 row.append(result_item.get('model') or 'N/A')
             if 'size' in group_by:
@@ -393,6 +398,8 @@ def usage_images(ctx, start_date, end_date, days, group_by, limit, output_format
 @click.option('--group-by', multiple=True, type=click.Choice(['project_id', 'model']), help='Group results by field')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def usage_audio_speeches(ctx, start_date, end_date, days, group_by, output_format): # Added end_date to func signature
     """Get audio speeches (TTS) usage statistics"""
     client = ctx.obj['client']
@@ -462,7 +469,7 @@ def usage_audio_speeches(ctx, start_date, end_date, days, group_by, output_forma
             row = []
             if 'project_id' in group_by:
                 project_id_val = result_item.get('project_id', 'N/A')
-                row.append(project_id_val[:20] + '...' if len(project_id_val) > 20 else project_id_val)
+                row.append(project_id_val)
             if 'model' in group_by:
                 row.append(result_item.get('model') or 'N/A')
             
@@ -493,6 +500,8 @@ def usage_audio_speeches(ctx, start_date, end_date, days, group_by, output_forma
 @click.option('--group-by', multiple=True, type=click.Choice(['project_id', 'model']), help='Group results by field')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def usage_audio_transcriptions(ctx, start_date, end_date, days, group_by, output_format): # Added end_date to func signature
     """Get audio transcriptions (Whisper) usage statistics"""
     client = ctx.obj['client']
@@ -562,7 +571,7 @@ def usage_audio_transcriptions(ctx, start_date, end_date, days, group_by, output
             row = []
             if 'project_id' in group_by:
                 project_id_val = result_item.get('project_id', 'N/A')
-                row.append(project_id_val[:20] + '...' if len(project_id_val) > 20 else project_id_val)
+                row.append(project_id_val)
             if 'model' in group_by:
                 row.append(result_item.get('model') or 'N/A')
             

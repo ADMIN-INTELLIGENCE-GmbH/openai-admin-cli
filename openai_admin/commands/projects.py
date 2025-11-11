@@ -5,7 +5,7 @@ import sys
 import os # Added for file operations
 from datetime import datetime, timedelta
 from tabulate import tabulate
-from openai_admin.utils import format_timestamp, format_redacted_value
+from openai_admin.utils import format_timestamp, format_redacted_value, with_notification, notification_options
 import requests
 
 # Assuming logger is defined elsewhere in the module or passed in context.
@@ -41,6 +41,8 @@ def projects():
 @click.option('--limit', default=100, help='Maximum number of projects to return')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
 @click.pass_context
+@notification_options
+@with_notification
 def list_projects(ctx, include_archived, limit, output_format):
     """List all projects in the organization"""
     client = ctx.obj['client']
@@ -64,12 +66,9 @@ def list_projects(ctx, include_archived, limit, output_format):
         # Table format
         table_data = []
         for project in projects_data:
-            # Apply Long Text Truncation for ID
-            project_id_truncated = project.get('id', '')[:20] + '...' if project.get('id') else 'N/A'
-            
             # Use 'N/A' for missing/null values and consistent timestamp formatting
             table_data.append([
-                project_id_truncated,
+                project.get('id', 'N/A'),
                 project.get('name', 'N/A'),
                 project.get('status', 'N/A'),
                 format_timestamp(project.get('created_at')),
@@ -325,6 +324,8 @@ def create_from_template(ctx, template_file, dry_run):
 @click.argument('project_ids', nargs=-1, required=True)
 @click.option('--force', is_flag=True, help='Skip confirmation prompts')
 @click.pass_context
+@notification_options
+@with_notification
 def delete_project(ctx, project_ids, force):
     """Delete (archive) one or more projects
     

@@ -14,3 +14,4 @@ venv/
 env/
 .DS_Store
 openai_admin.log
+config/mattermost.json
