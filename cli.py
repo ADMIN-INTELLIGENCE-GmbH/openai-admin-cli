@@ -13,8 +13,9 @@ from openai_admin.client import OpenAIAdminClient
 # Load environment variables from .env file
 load_dotenv()
 
-# Setup logging
-log_file = 'openai_admin.log'
+# Setup logging - log file in project root
+project_root = os.path.dirname(os.path.abspath(__file__))
+log_file = os.path.join(project_root, 'openai_admin.log')
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -29,7 +30,7 @@ logger = logging.getLogger('openai_admin')
 @click.group()
 @click.option('--admin-key', envvar='OPENAI_ADMIN_KEY', help='OpenAI Admin API Key')
 @click.option('--notify', help='User ID to notify (requires --channel)')
-@click.option('--channel', type=click.Choice(['mattermost']), help='Notification channel (e.g., mattermost)')
+@click.option('--channel', type=click.Choice(['mattermost', 'email']), help='Notification channel (e.g., mattermost, email)')
 @click.pass_context
 def cli(ctx, admin_key, notify, channel):
     """OpenAI Admin CLI - Manage your OpenAI organization

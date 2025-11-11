@@ -2,6 +2,55 @@
 
 A powerful command-line tool for managing your OpenAI organization using the Admin API.
 
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [List Users](#list-users)
+  - [List Projects](#list-projects)
+  - [List API Keys](#list-api-keys)
+    - [List Admin Keys](#list-admin-keys)
+    - [List Project Keys](#list-project-keys)
+    - [Get API Key Details](#get-api-key-details)
+    - [Delete API Key](#delete-api-key)
+  - [Service Account Management](#service-account-management)
+    - [List Service Accounts](#list-service-accounts)
+    - [Create Service Account](#create-service-account)
+    - [Get Service Account Details](#get-service-account-details)
+    - [Delete Service Account](#delete-service-account)
+  - [Rate Limits Management](#rate-limits-management)
+    - [List Rate Limits](#list-rate-limits)
+    - [Update Rate Limits](#update-rate-limits)
+  - [Usage Analytics](#usage-analytics)
+    - [Completions Usage](#completions-usage)
+    - [Embeddings Usage](#embeddings-usage)
+    - [Image Generation Usage](#image-generation-usage)
+    - [Audio Speeches Usage (TTS)](#audio-speeches-usage-tts)
+    - [Audio Transcriptions Usage (Whisper)](#audio-transcriptions-usage-whisper)
+  - [Cost Tracking](#cost-tracking)
+  - [Notifications](#notifications)
+    - [Quick Start](#quick-start)
+    - [Notification Commands](#notification-commands)
+    - [Use Cases](#use-cases)
+    - [Message Format](#message-format)
+- [Environment Variables](#environment-variables)
+  - [Setting up Notifications](#setting-up-notifications)
+- [Output Formats](#output-formats)
+  - [Table Format (Default)](#table-format-default)
+  - [JSON Format](#json-format)
+- [Common Use Cases](#common-use-cases)
+- [Example Scripts (NEW in v1.2.0)](#example-scripts)
+  - [Monitoring Scripts](#monitoring-scripts-1)
+  - [Security Scripts](#security-scripts-1)
+- [Security Notes](#security-notes)
+- [Troubleshooting](#troubleshooting)
+- [Future Features](#future-features)
+- [Changelog](#changelog)
+- [Contributing](#contributing)
+- [Author](#author)
+- [License](#license)
+
 ## Features
 
 - **Notification System**: Send command results to users via Mattermost for remote execution and monitoring
@@ -687,7 +736,18 @@ MATTERMOST_BOT_ID="your_bot_id"
 MATTERMOST_BASE_URL="https://chat.admin-intelligence.de/api/v4"
 ```
 
-Then configure user mappings in `config/mattermost.json`:
+To enable Email notifications, add these to your `.env` file:
+
+```env
+MAIL_HOST=smtp.example.com
+MAIL_PORT=587
+MAIL_USERNAME=your_email@example.com
+MAIL_PASSWORD=your_password
+MAIL_FROM_ADDRESS=noreply@example.com
+MAIL_FROM_NAME="OpenAI Admin CLI"
+```
+
+Then configure user mappings in `config/users.json`:
 
 ```json
 {
@@ -701,6 +761,8 @@ Then configure user mappings in `config/mattermost.json`:
   }
 }
 ```
+
+**Note:** For email notifications, only the `name` and `email` fields are required. The Mattermost fields are optional and only needed if you want to use Mattermost notifications.
 
 ## Output Formats
 
@@ -805,6 +867,66 @@ python openai_admin.py costs --days 30 --group-by project_id
 python openai_admin.py costs --start-date 2024-01-01 --group-by project_id --group-by line_item
 ```
 
+## Example Scripts
+
+**NEW in Version 1.2.0!** Pre-built automation scripts for monitoring and security workflows.
+
+The `examples/` directory contains ready-to-use shell scripts for common operational tasks:
+
+### Monitoring Scripts
+
+Located in `examples/monitoring/`:
+
+- **`daily-usage-report.sh`** - Daily usage summary across all API types (completions, embeddings, images, audio)
+- **`weekly-cost-report.sh`** - Weekly cost breakdown by project and line item
+- **`monthly-billing-summary.sh`** - Comprehensive end-of-month report with recommendations
+
+**Quick Start:**
+```bash
+# Run daily usage report
+./examples/monitoring/daily-usage-report.sh
+
+# Get last 7 days with notification
+./examples/monitoring/daily-usage-report.sh --days 7 --notify 49 --channel mattermost
+
+# Weekly costs sent via email
+./examples/monitoring/weekly-cost-report.sh --notify 49 --channel email
+```
+
+### Security Scripts
+
+Located in `examples/security/`:
+
+- **`audit-security-scan.sh`** - Scan audit logs for suspicious activities (key deletions, user changes, etc.)
+- **`list-all-keys.sh`** - Complete inventory of all API keys across the organization
+- **`unused-keys-report.sh`** - Identify keys not used in N days (default: 30)
+- **`compliance-snapshot.sh`** - Generate comprehensive compliance report (users, projects, keys, service accounts, audit logs)
+
+**Quick Start:**
+```bash
+# Run security audit
+./examples/security/audit-security-scan.sh
+
+# Find keys unused for 60+ days
+./examples/security/unused-keys-report.sh --days 60
+
+# Generate compliance snapshot
+./examples/security/compliance-snapshot.sh
+```
+
+**Features:**
+- ✅ All scripts support `--notify` and `--channel` for automated alerting
+- ✅ JSON output (`--format json`) for integration with other tools
+- ✅ Comprehensive help text (`--help`)
+- ✅ Perfect for cron scheduling and CI/CD pipelines
+
+**Learn More:**
+See the complete documentation in [`examples/README.md`](examples/README.md) including:
+- Detailed usage instructions
+- Cron scheduling examples
+- CI/CD integration patterns
+- Best practices for automation
+
 ## Security Notes
 
 - **Admin API keys have elevated privileges** - handle them securely
@@ -837,20 +959,68 @@ Coming soon:
 - User management (invite, modify, delete)
 - Rate limit management via templates
 - Export reports to CSV/Excel
-- Cost alerts and budgeting
-- Additional notification channels (email, Slack, Discord)
+- Cost alerts and budgeting with thresholds
+- Additional notification channels (Slack, Discord, PagerDuty)
+- Interactive web dashboard
+- Automated key rotation workflows
+- Project provisioning templates
+- Budget forecasting based on usage trends
 
 ## Changelog
+
+### Version 1.2.0 - November 11, 2025
+
+**New Features - Example Scripts for Automation:**
+- **Example Scripts Directory**: Added `examples/` with pre-built automation scripts for monitoring and security
+  - **Monitoring Scripts** (`examples/monitoring/`):
+    - `daily-usage-report.sh` - Daily usage summary across all API types
+    - `weekly-cost-report.sh` - Weekly cost breakdown by project and line item
+    - `monthly-billing-summary.sh` - Comprehensive end-of-month billing report
+  - **Security Scripts** (`examples/security/`):
+    - `audit-security-scan.sh` - Scan audit logs for suspicious activities
+    - `list-all-keys.sh` - Complete API key inventory across organization
+    - `unused-keys-report.sh` - Identify keys not used in N days
+    - `compliance-snapshot.sh` - Generate comprehensive compliance reports
+  - All scripts support notifications (`--notify`, `--channel`)
+  - All scripts support JSON output for integration
+  - All scripts include comprehensive help text and error handling
+
+**Documentation:**
+- Added detailed [`examples/README.md`](examples/README.md) with:
+  - Complete usage instructions for all scripts
+  - Cron scheduling examples for automation
+  - CI/CD integration patterns (GitHub Actions, etc.)
+  - Best practices for production deployment
+  - Troubleshooting guides
+- Updated main README with Examples section and quick start guide
+- Added Table of Contents entry for Example Scripts
+
+**Use Cases Enabled:**
+- Automated daily/weekly/monthly reporting
+- Scheduled security audits
+- Compliance snapshot generation
+- Cost monitoring and alerting
+- Key lifecycle management
+- Continuous security monitoring
+
+**Technical Details:**
+- Scripts tested on macOS and Linux (Bash/Zsh)
+- Portable shell scripts with minimal dependencies
+- Structured output with color-coded sections
+- Comprehensive error handling and validation
+- Support for output redirection and logging
 
 ### Version 1.1.0 - November 11, 2025
 
 **New Features:**
-- **Mattermost Notification System**: Send command results to users via Mattermost
+- **Notification System**: Send command results to users via Mattermost or Email
   - Added `--notify` and `--channel` options to all commands
   - Supports notification options at both root level and command level
-  - Automatic output capture and formatting for Mattermost
+  - Automatic output capture and formatting for notifications
   - New `notify` command group with test, list-users, and status subcommands
-  - Integration with user mappings via `config/mattermost.json`
+  - Integration with user mappings via `config/users.json`
+  - **Email Support**: Send notifications via SMTP (configurable via MAIL_* environment variables)
+  - **Mattermost Support**: Send notifications via Mattermost bot integration
   - See [NOTIFICATIONS.md](NOTIFICATIONS.md) for complete documentation
 
 **Improvements:**
@@ -867,7 +1037,8 @@ Coming soon:
 
 **Configuration:**
 - Added support for `MATTERMOST_BOT_TOKEN`, `MATTERMOST_BOT_ID`, and `MATTERMOST_BASE_URL` environment variables
-- Added `config/mattermost.json` for user ID to Mattermost channel mappings
+- Added support for `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, and `MAIL_FROM_NAME` environment variables
+- Renamed `config/mattermost.json` to `config/users.json` for unified user management across notification channels
 
 **Documentation:**
 - Added comprehensive notification documentation in README

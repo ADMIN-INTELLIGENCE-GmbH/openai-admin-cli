@@ -2,6 +2,9 @@
 import os
 import json
 import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from typing import Optional, Dict, Any
 from pathlib import Path
 
@@ -30,7 +33,7 @@ class MattermostNotifier:
     
     def _load_user_mappings(self) -> Dict[str, Dict[str, Any]]:
         """Load user ID to Mattermost mappings from config file"""
-        config_path = Path(__file__).parent.parent / 'config' / 'mattermost.json'
+        config_path = Path(__file__).parent.parent / 'config' / 'users.json'
         
         if not config_path.exists():
             return {}
@@ -40,7 +43,7 @@ class MattermostNotifier:
                 data = json.load(f)
                 return data.get('users', {})
         except Exception as e:
-            raise ValueError(f"Failed to load Mattermost config: {e}")
+            raise ValueError(f"Failed to load user config: {e}")
     
     def get_user_info(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user information by user ID"""
@@ -73,7 +76,7 @@ class MattermostNotifier:
         Send a message to a user by their user ID
         
         Args:
-            user_id: Internal user ID (from mattermost.json)
+            user_id: Internal user ID (from users.json)
             message: Message text to send
             
         Returns:
@@ -129,6 +132,126 @@ class MattermostNotifier:
         return message
 
 
+class EmailNotifier:
+    """Send notifications via Email"""
+    
+    def __init__(self):
+        """Initialize Email notifier with environment variables"""
+        self.mailer = os.getenv('MAIL_MAILER', 'smtp')
+        self.host = os.getenv('MAIL_HOST')
+        self.port = int(os.getenv('MAIL_PORT', '587'))
+        self.username = os.getenv('MAIL_USERNAME')
+        self.password = os.getenv('MAIL_PASSWORD')
+        self.from_email = os.getenv('MAIL_FROM_ADDRESS', self.username)
+        self.from_name = os.getenv('MAIL_FROM_NAME', 'OpenAI Admin CLI')
+        
+        if not self.host:
+            raise ValueError("MAIL_HOST environment variable is required")
+        if not self.username:
+            raise ValueError("MAIL_USERNAME environment variable is required")
+        if not self.password:
+            raise ValueError("MAIL_PASSWORD environment variable is required")
+        
+        # Load user mappings
+        self.user_mappings = self._load_user_mappings()
+    
+    def _load_user_mappings(self) -> Dict[str, Dict[str, Any]]:
+        """Load user ID to email mappings from config file"""
+        config_path = Path(__file__).parent.parent / 'config' / 'users.json'
+        
+        if not config_path.exists():
+            return {}
+        
+        try:
+            with open(config_path, 'r') as f:
+                data = json.load(f)
+                return data.get('users', {})
+        except Exception as e:
+            raise ValueError(f"Failed to load user config: {e}")
+    
+    def get_user_info(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get user information by user ID"""
+        return self.user_mappings.get(str(user_id))
+    
+    def send_email(self, to_email: str, subject: str, body: str, html: bool = False) -> bool:
+        """
+        Send an email
+        
+        Args:
+            to_email: Recipient email address
+            subject: Email subject
+            body: Email body (plain text or HTML)
+            html: Whether the body is HTML
+            
+        Returns:
+            True if successful
+        """
+        try:
+            # Create message
+            msg = MIMEMultipart('alternative')
+            msg['From'] = f"{self.from_name} <{self.from_email}>"
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            
+            # Attach body
+            mime_type = 'html' if html else 'plain'
+            msg.attach(MIMEText(body, mime_type))
+            
+            # Send email
+            with smtplib.SMTP(self.host, self.port) as server:
+                server.starttls()
+                server.login(self.username, self.password)
+                server.send_message(msg)
+            
+            return True
+        except Exception as e:
+            raise RuntimeError(f"Failed to send email: {e}")
+    
+    def send_to_user(self, user_id: str, message: str) -> bool:
+        """
+        Send an email to a user by their user ID
+        
+        Args:
+            user_id: Internal user ID (from users.json)
+            message: Message text to send
+            
+        Returns:
+            True if successful
+        """
+        user_info = self.get_user_info(user_id)
+        if not user_info:
+            raise ValueError(f"User ID {user_id} not found in user mappings")
+        
+        email = user_info.get('email')
+        if not email:
+            raise ValueError(f"No email address found for user {user_id}")
+        
+        name = user_info.get('name', 'User')
+        subject = "OpenAI Admin CLI - Command Output"
+        
+        return self.send_email(email, subject, message)
+    
+    def format_command_output(self, command: str, output: str, success: bool = True) -> str:
+        """
+        Format command output for email
+        
+        Args:
+            command: Command that was executed
+            output: Output from the command
+            success: Whether the command succeeded
+            
+        Returns:
+            Formatted message
+        """
+        status_text = "Success" if success else "Failed"
+        
+        message = f"OpenAI Admin CLI - {status_text}\n\n"
+        message += f"Command: {command}\n\n"
+        message += f"Output:\n{'-' * 50}\n{output}\n{'-' * 50}"
+        
+        return message
+
+
 class NotificationManager:
     """Manage notifications across different channels"""
     
@@ -142,6 +265,12 @@ class NotificationManager:
         except ValueError as e:
             # Mattermost not configured
             pass
+        
+        try:
+            self.notifiers['email'] = EmailNotifier()
+        except ValueError as e:
+            # Email not configured
+            pass
     
     def is_available(self, channel: str) -> bool:
         """Check if a notification channel is available"""
@@ -152,7 +281,7 @@ class NotificationManager:
         Send a notification
         
         Args:
-            channel: Notification channel (e.g., 'mattermost')
+            channel: Notification channel (e.g., 'mattermost', 'email')
             user_id: User ID to notify
             message: Message to send
             
@@ -166,6 +295,8 @@ class NotificationManager:
         
         try:
             if channel == 'mattermost':
+                notifier.send_to_user(user_id, message)
+            elif channel == 'email':
                 notifier.send_to_user(user_id, message)
             return True
         except Exception as e:

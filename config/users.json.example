@@ -6,5 +6,6 @@
       "mattermost_user_id": "pbif4ka7shkhtyddh5he3fh41c",
       "mattermost_channel_id": "iwtea4gjtfdyhfsjgis7eqnknh"
     }
-  }
+  },
+  "_comment": "For email notifications, only 'name' and 'email' fields are required. The 'mattermost_user_id' and 'mattermost_channel_id' fields are only needed for Mattermost notifications."
 }
