@@ -59,7 +59,7 @@ def cli(ctx, admin_key, notify, channel):
 
 
 # Import and register command groups
-from openai_admin.commands import users, projects, keys, service_accounts, rate_limits, usage, costs, audit, notify
+from openai_admin.commands import users, projects, keys, service_accounts, rate_limits, usage, costs, audit, notify, rotation
 
 cli.add_command(users.users)
 cli.add_command(projects.projects)
@@ -70,6 +70,7 @@ cli.add_command(usage.usage)
 cli.add_command(costs.costs_command)
 cli.add_command(audit.audit)
 cli.add_command(notify.notify)
+cli.add_command(rotation.rotation)
 
 
 if __name__ == '__main__':

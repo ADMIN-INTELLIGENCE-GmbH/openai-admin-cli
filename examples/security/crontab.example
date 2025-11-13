@@ -1,0 +1,92 @@
+# Example Crontab for Automated API Key Rotation
+#
+# This file shows how to schedule automated API key rotation using cron.
+# The two-step rotation process creates new keys on day 1 and cleans up old keys on day 7.
+#
+# Installation:
+#   1. Edit this file with your actual paths
+#   2. Run: crontab -e
+#   3. Add the desired lines below
+#   4. Save and exit
+#
+# View current crontab:
+#   crontab -l
+#
+# Remove crontab:
+#   crontab -r
+#
+# Cron format: minute hour day month day-of-week command
+#   minute:       0-59
+#   hour:         0-23
+#   day:          1-31
+#   month:        1-12
+#   day-of-week:  0-7 (0 and 7 are Sunday)
+
+# ==============================================================================
+# RECOMMENDED: Monthly Rotation with 7-Day Grace Period
+# ==============================================================================
+
+# Day 1 of every month at 9:00 AM - Create new API keys
+0 9 1 * * cd /path/to/openai-helper && ./examples/security/batch-rotation.sh create --force >> /var/log/openai-rotation-create.log 2>&1
+
+# Day 7 of every month at 9:00 AM - Cleanup old API keys
+0 9 7 * * cd /path/to/openai-helper && ./examples/security/batch-rotation.sh cleanup --force >> /var/log/openai-rotation-cleanup.log 2>&1
+
+
+# ==============================================================================
+# ALTERNATIVE: Quarterly Rotation (every 3 months)
+# ==============================================================================
+
+# First day of Jan/Apr/Jul/Oct at 9:00 AM - Create new API keys
+# 0 9 1 1,4,7,10 * cd /path/to/openai-helper && ./examples/security/batch-rotation.sh create --force >> /var/log/openai-rotation-create.log 2>&1
+
+# Seventh day of Jan/Apr/Jul/Oct at 9:00 AM - Cleanup old API keys
+# 0 9 7 1,4,7,10 * cd /path/to/openai-helper && ./examples/security/batch-rotation.sh cleanup --force >> /var/log/openai-rotation-cleanup.log 2>&1
+
+
+# ==============================================================================
+# ALTERNATIVE: Weekly Rotation (every Sunday/Saturday)
+# ==============================================================================
+
+# Every Sunday at 9:00 AM - Create new API keys
+# 0 9 * * 0 cd /path/to/openai-helper && ./examples/security/batch-rotation.sh create --force >> /var/log/openai-rotation-create.log 2>&1
+
+# Every Saturday at 9:00 AM - Cleanup old API keys (6 days grace period)
+# 0 9 * * 6 cd /path/to/openai-helper && ./examples/security/batch-rotation.sh cleanup --force >> /var/log/openai-rotation-cleanup.log 2>&1
+
+
+# ==============================================================================
+# IMPORTANT NOTES
+# ==============================================================================
+# 
+# 1. Make sure to replace "/path/to/openai-helper" with your actual installation path
+#
+# 2. The script needs to run in the openai-helper directory (hence the "cd" command)
+#
+# 3. Logs are written to /var/log/ - make sure you have write permissions
+#    or change to a different log location like ~/logs/
+#
+# 4. The grace period (time between create and cleanup) should be long enough to:
+#    - Receive and review notifications
+#    - Update application configurations
+#    - Deploy changes
+#    - Test in production
+#    - Verify everything works with new keys
+#
+# 5. Test your cron jobs first by running the commands manually:
+#    cd /path/to/openai-helper && ./examples/security/batch-rotation.sh create --force
+#
+# 6. Monitor the log files to ensure rotations are running successfully:
+#    tail -f /var/log/openai-rotation-create.log
+#    tail -f /var/log/openai-rotation-cleanup.log
+#
+# 7. Make sure config/rotation.json exists and is properly configured
+#
+# 8. Ensure your OPENAI_ADMIN_API_KEY environment variable is set for cron:
+#    You may need to add it to the cron command like:
+#    0 9 1 * * export OPENAI_ADMIN_API_KEY=your-key && cd /path/to/openai-helper && ...
+#
+#    Or set it in your crontab environment at the top:
+#    OPENAI_ADMIN_API_KEY=your-key-here
+#
+# ==============================================================================

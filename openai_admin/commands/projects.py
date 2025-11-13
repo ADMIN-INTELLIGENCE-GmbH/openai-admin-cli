@@ -85,6 +85,49 @@ def list_projects(ctx, include_archived, limit, output_format):
         click.echo(tabulate(table_data, headers=headers, tablefmt='grid'))
 
 
+@projects.command('create')
+@click.argument('name')
+@click.option('--format', 'output_format', type=click.Choice(['table', 'json']), default='table', help='Output format')
+@click.pass_context
+@notification_options
+@with_notification
+def create_project(ctx, name, output_format):
+    """Create a new project in the organization
+    
+    Creates a simple project with the given name. For more complex setups
+    (users, service accounts, rate limits), use 'create-from-template'.
+    """
+    client = ctx.obj['client']
+    
+    indent_1 = ' ' * 3
+    
+    click.echo(f"Creating project '{name}'...")
+    
+    try:
+        result = client.create_project(name)
+        
+        if output_format == 'json':
+            click.echo(json.dumps(result, indent=2))
+        else:
+            click.echo(f"\n{'='*80}")
+            click.echo(f"[SUCCESS] Project Created Successfully!")
+            click.echo(f"{'='*80}")
+            click.echo(f"ID:         {result.get('id')}")
+            click.echo(f"Name:       {result.get('name')}")
+            click.echo(f"Status:     {result.get('status')}")
+            click.echo(f"Created At: {format_timestamp(result.get('created_at'))}")
+            click.echo(f"{'='*80}\n")
+            
+            click.echo(f"[TIP] Next steps:")
+            click.echo(f"{indent_1}• Add users: python cli.py projects add-user {result.get('id')} USER_ID ROLE")
+            click.echo(f"{indent_1}• Create service accounts: python cli.py service-accounts create {result.get('id')} NAME")
+            click.echo(f"{indent_1}• Configure rate limits: python cli.py rate-limits list {result.get('id')}\n")
+    
+    except Exception as e:
+        click.echo(f"\n[ERROR] Failed to create project: {e}", err=True)
+        sys.exit(1)
+
+
 @projects.command('export-template')
 @click.argument('project_id')
 @click.option('--output', '-o', help='Output file path (default: templates/projects/<project_name>.json)')

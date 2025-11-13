@@ -19,6 +19,14 @@ A powerful command-line tool for managing your OpenAI organization using the Adm
     - [Create Service Account](#create-service-account)
     - [Get Service Account Details](#get-service-account-details)
     - [Delete Service Account](#delete-service-account)
+  - [API Key Rotation](#api-key-rotation)
+    - [How It Works](#how-it-works)
+    - [Execute Rotation](#execute-rotation)
+    - [List Rotated Keys](#list-rotated-keys)
+    - [Check Rotation Status](#check-rotation-status)
+    - [Configuration File](#configuration-file)
+    - [Automation Script](#automation-script)
+    - [Best Practices](#best-practices)
   - [Rate Limits Management](#rate-limits-management)
     - [List Rate Limits](#list-rate-limits)
     - [Update Rate Limits](#update-rate-limits)
@@ -340,7 +348,273 @@ python openai_admin.py service-accounts delete proj_abc123 svc_acct_xyz --force
 - This action **cannot be undone**
 - Any systems using those API keys will immediately lose access
 
+### API Key Rotation
+
+Automated API key rotation helps maintain security by regularly replacing service account keys. The rotation system uses **date-based naming** (YY-MM format) and a **two-step workflow** with a grace period for safe key migration.
+
+#### Two-Step Rotation Workflow
+
+**Recommended approach** with grace period between creating and deleting keys:
+
+**Day 1 - Create New Keys:**
+```bash
+# Process all configured rotations
+./examples/security/batch-rotation.sh create --force
+
+# Or use Python directly
+python3 cli.py rotation batch --config-file config/rotation.json --action create --force
+```
+
+**Days 2-6 - Update & Test:**
+1. Check Mattermost for new API key notifications
+2. Update application configurations with new keys
+3. Deploy changes to staging/production
+4. Test thoroughly - both old and new keys are active
+
+**Day 7 - Cleanup Old Keys:**
+```bash
+# Delete old keys after grace period
+./examples/security/batch-rotation.sh cleanup --force
+
+# Or use Python directly
+python3 cli.py rotation batch --config-file config/rotation.json --action cleanup --force
+```
+
+#### Naming Convention
+
+Service accounts use **YY-MM format** (defaulting to 1st of month):
+- `ticketng-dev-25-11` (November 2025)
+- `spider-apfel-25-12` (December 2025)
+- `kontakt-prod-26-01` (January 2026)
+
+Alternative YYYY-MM-DD format also supported if needed.
+
+#### Batch Rotation Configuration
+
+Configure all your API keys in `config/rotation.json`:
+
+```json
+{
+  "rotations": [
+    {
+      "project_name": "TicketNG",
+      "project_id": "proj_4fnHtp9FsoItjU7XBAJkau8H",
+      "keys": [
+        {
+          "name": "ticketng-dev",
+          "notify_user": "49",
+          "notify_channel": "mattermost",
+          "date_format": "YY-MM"
+        },
+        {
+          "name": "ticketng-prod",
+          "notify_user": "49",
+          "notify_channel": "mattermost",
+          "date_format": "YY-MM"
+        }
+      ]
+    },
+    {
+      "project_name": "3CX",
+      "project_id": "proj_1nkrbXfcHFHxxQR708gDrGkq",
+      "keys": [
+        {
+          "name": "3cx-prod",
+          "notify_user": "94",
+          "notify_channel": "mattermost",
+          "date_format": "YY-MM"
+        }
+      ]
+    }
+  ]
+}
+```
+
+See `config/rotation.json.example` for complete structure.
+
+#### Batch Rotation Commands
+
+Process all configured rotations at once:
+
+```bash
+# Day 1: Create all new keys (with preview)
+./examples/security/batch-rotation.sh create
+
+# Day 1: Create all new keys (automated, no prompts)
+./examples/security/batch-rotation.sh create --force
+
+# Day 7: Cleanup old keys (with preview and confirmation)
+./examples/security/batch-rotation.sh cleanup
+
+# Day 7: Cleanup old keys (automated, no prompts)
+./examples/security/batch-rotation.sh cleanup --force
+
+# Using Python commands directly:
+python3 cli.py rotation batch --config-file config/rotation.json --action create --dry-run
+python3 cli.py rotation batch --config-file config/rotation.json --action create --force
+python3 cli.py rotation batch --config-file config/rotation.json --action cleanup --force
+```
+
+**Example Output:**
+```
+================================================================================
+Batch Rotation - CREATE
+================================================================================
+Config File:      config/rotation.json
+Projects:         7
+Total Keys:       11
+Action:           create
+Dry Run:          False
+================================================================================
+
+[1/7] Processing: TicketNG
+  [1/2] ticketng-dev
+    Format:       YY-MM
+    Notify:       49 via mattermost
+    Creating: ticketng-dev-25-11
+    Created: user-abc123xyz
+    Notification sent to user 49
+    [SUCCESS]
+  [2/2] ticketng-prod
+    Creating: ticketng-prod-25-11
+    [SUCCESS]
+
+... (continues for all projects) ...
+
+================================================================================
+Batch Rotation Summary
+================================================================================
+Successful:   11
+Failed:       0
+Skipped:      0
+Status:       COMPLETE
+================================================================================
+```
+
+#### Individual Key Rotation
+
+For rotating a single key manually:
+
+**Create Command** (Step 1):
+```bash
+python3 cli.py rotation create \
+  --project-id proj_123 \
+  --prefix ticketng-dev \
+  --notify-user 49 \
+  --force
+```
+
+**Cleanup Command** (Step 2):
+```bash
+python3 cli.py rotation cleanup \
+  --project-id proj_123 \
+  --prefix ticketng-dev \
+  --force
+```
+
+**Execute Command** (immediate rotation, no grace period):
+```bash
+# ⚠️ WARNING: Creates and deletes in one step
+python3 cli.py rotation execute \
+  --project-id proj_123 \
+  --prefix api-key \
+  --notify-user 1
+```
+
+#### List and Check Commands
+
+```bash
+# List all rotation-managed service accounts
+python3 cli.py rotation list proj_123
+
+# Filter by specific prefix
+python3 cli.py rotation list proj_123 --prefix ticketng-dev
+
+# Check rotation status
+python3 cli.py rotation check proj_123 ticketng-dev
+```
+
+#### Automated Monthly Rotation with Cron
+
+Schedule automatic rotations using cron (see `examples/security/crontab.example`):
+
+```cron
+# Day 1 of every month at 9:00 AM - Create new API keys
+0 9 1 * * cd /path/to/openai-helper && ./examples/security/batch-rotation.sh create --force >> /var/log/openai-rotation-create.log 2>&1
+
+# Day 7 of every month at 9:00 AM - Cleanup old API keys
+0 9 7 * * cd /path/to/openai-helper && ./examples/security/batch-rotation.sh cleanup --force >> /var/log/openai-rotation-cleanup.log 2>&1
+```
+
+#### Best Practices
+
+**Security:**
+- Use the **two-step workflow** with grace period (recommended 7 days)
+- Never use immediate rotation (`execute`) in production without testing
+- Always configure `notify_user` to get new keys via Mattermost
+- Monitor Mattermost notifications to verify rotations succeed
+- Keep old keys active during grace period for rollback capability
+
+**Configuration:**
+- Use descriptive prefixes: `ticketng-dev`, `spider-prod`, `kontakt-api`
+- Use YY-MM date format for cleaner names (default)
+- Configure all keys in `config/rotation.json` for batch processing
+- Document which user owns which keys in your rotation config
+
+**Testing:**
+1. Always use `--dry-run` first to preview changes
+2. Test new keys in staging before updating production
+3. Verify both old and new keys work during grace period
+4. Monitor application logs for authentication errors
+5. Only run cleanup after confirming new keys work
+
+**Automation:**
+- Schedule monthly rotations using cron (see `examples/security/crontab.example`)
+- Use `--force` flag for automated execution without prompts
+- Log rotation output for audit trail
+- Set up monitoring alerts for rotation failures
+- Test cron commands manually before scheduling
+
+### Projects Management
+
+Manage OpenAI projects to organize your API keys, users, and resources.
+
+#### List Projects
+
+View all projects in your organization:
+
+```bash
+python3 cli.py projects list
+```
+
+Options:
+- `--format [table|json]` - Output format (default: table)
+- `--limit N` - Maximum number of projects to return
+
+#### Create Project
+
+Create a new project:
+
+```bash
+python3 cli.py projects create "Project Name"
+```
+
+Example:
+```bash
+python3 cli.py projects create "Inventory"
+# Returns: Created project proj_abc123xyz
+```
+
+#### View Project Details
+
+Get detailed information about a specific project:
+
+```bash
+python3 cli.py projects get PROJECT_ID
+```
+
 ### Rate Limits Management
+
 
 Rate limits control API usage per model and per project. This is crucial for **cost control**, **preventing abuse**, and **managing performance**. You can set limits lower than your organization's limits but cannot exceed them.
 
@@ -901,6 +1175,7 @@ Located in `examples/security/`:
 - **`list-all-keys.sh`** - Complete inventory of all API keys across the organization
 - **`unused-keys-report.sh`** - Identify keys not used in N days (default: 30)
 - **`compliance-snapshot.sh`** - Generate comprehensive compliance report (users, projects, keys, service accounts, audit logs)
+- **`rotate-api-keys.sh`** - Automated API key rotation with date-based service account naming
 
 **Quick Start:**
 ```bash
@@ -912,6 +1187,9 @@ Located in `examples/security/`:
 
 # Generate compliance snapshot
 ./examples/security/compliance-snapshot.sh
+
+# Rotate API keys
+./examples/security/rotate-api-keys.sh --project-id proj_123 --prefix api-key
 ```
 
 **Features:**

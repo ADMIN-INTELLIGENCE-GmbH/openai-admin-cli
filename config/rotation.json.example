@@ -1,0 +1,99 @@
+{
+  "_comment": "Multi-project API key rotation configuration",
+  "_usage": "Copy this file to rotation.json and customize for your needs",
+  
+  "_description": {
+    "structure": "Array of projects, each containing multiple keys to rotate",
+    "workflow": "Use 'rotation batch' command to process all configured rotations",
+    "notifications": "Each key can notify different users via different channels"
+  },
+  
+  "rotations": [
+    {
+      "project_name": "Inventory",
+      "project_id": "proj_01srJH5HJkvZfbFbaEwhzHaE",
+      "keys": [
+        {
+          "name": "inventory-server",
+          "notify_user": "49",
+          "notify_channel": "mattermost",
+          "date_format": "YY-MM"
+        },
+        {
+          "name": "inventory-worker",
+          "notify_user": "49",
+          "notify_channel": "mattermost",
+          "date_format": "YY-MM"
+        }
+      ]
+    },
+    {
+      "project_name": "Analytics Dashboard",
+      "project_id": "proj_analytics123",
+      "keys": [
+        {
+          "name": "analytics-api",
+          "notify_user": "1",
+          "notify_channel": "mattermost",
+          "date_format": "YY-MM"
+        },
+        {
+          "name": "analytics-etl",
+          "notify_user": "2",
+          "notify_channel": "mattermost",
+          "date_format": "YYYY-MM-DD"
+        }
+      ]
+    },
+    {
+      "project_name": "Customer Portal",
+      "project_id": "proj_portal456",
+      "keys": [
+        {
+          "name": "portal-backend",
+          "notify_user": "1",
+          "notify_channel": "mattermost",
+          "date_format": "YY-MM"
+        }
+      ]
+    }
+  ],
+  
+  "_field_descriptions": {
+    "project_name": "Human-readable project name (for logging/display)",
+    "project_id": "OpenAI project ID (starts with proj_)",
+    "keys": "Array of API keys to rotate within this project",
+    "name": "Service account naming prefix (e.g., 'inventory-server')",
+    "notify_user": "User ID from users.json to receive the new API key",
+    "notify_channel": "Notification method ('mattermost' or 'none')",
+    "date_format": "YY-MM (default) or YYYY-MM-DD"
+  },
+  
+  "_naming_examples": {
+    "YY-MM": [
+      "inventory-server-25-11",
+      "inventory-server-25-12",
+      "analytics-api-26-01"
+    ],
+    "YYYY-MM-DD": [
+      "analytics-etl-2025-11-13",
+      "analytics-etl-2025-12-01"
+    ]
+  },
+  
+  "_workflow": {
+    "step_1_create": {
+      "command": "python3 cli.py rotation batch --config config/rotation.json --action create",
+      "description": "Creates new keys for all configured rotations (Day 1)",
+      "result": "New keys created, notifications sent, old keys remain active"
+    },
+    "step_2_test": {
+      "description": "Update applications with new keys, test thoroughly (Days 2-6)"
+    },
+    "step_3_cleanup": {
+      "command": "python3 cli.py rotation batch --config config/rotation.json --action cleanup",
+      "description": "Deletes old keys (Day 7)",
+      "result": "Old keys deleted, only newest keys remain"
+    }
+  }
+}
